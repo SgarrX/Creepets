@@ -16,97 +16,27 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-/* ========================================= */
-/* SHOP ITEMS                                */
-/* ========================================= */
-
 export function initShopItems() {
   const items: Item[] = [
-    /* ---------- FOOD ---------- */
-    {
-      id: "food_apple",
-      type: "food",
-      name: "Apple",
-      price: 5,
-      effects: { hunger: -15, happiness: 2, xp: 1 }
-    },
-    {
-      id: "food_burger",
-      type: "food",
-      name: "Burger",
-      price: 12,
-      effects: { hunger: -30, happiness: 4, energy: 5, xp: 2 }
-    },
-    {
-      id: "food_cake",
-      type: "food",
-      name: "Cake",
-      price: 20,
-      effects: { hunger: -25, happiness: 8, xp: 3 }
-    },
-    {
-      id: "food_salad",
-      type: "food",
-      name: "Salad",
-      price: 10,
-      effects: { hunger: -18, energy: 4, xp: 2 }
-    },
+    // FOOD
+    { id: "food_apple", type: "food", name: "Apple", price: 5, effects: { hunger: -15, happiness: 2, xp: 1 } },
+    { id: "food_burger", type: "food", name: "Burger", price: 12, effects: { hunger: -30, happiness: 4, energy: 5, xp: 2 } },
+    { id: "food_cake", type: "food", name: "Cake", price: 20, effects: { hunger: -25, happiness: 8, xp: 3 } },
+    { id: "food_salad", type: "food", name: "Salad", price: 10, effects: { hunger: -18, energy: 4, xp: 2 } },
 
-    /* ---------- TOYS ---------- */
-    {
-      id: "toy_ball",
-      type: "toy",
-      name: "Ball",
-      price: 10,
-      effects: { happiness: 10, energy: -5, xp: 2 }
-    },
-    {
-      id: "toy_robot",
-      type: "toy",
-      name: "Robot",
-      price: 25,
-      effects: { happiness: 15, energy: -8, xp: 4 }
-    },
-    {
-      id: "toy_rope",
-      type: "toy",
-      name: "Jump Rope",
-      price: 15,
-      effects: { happiness: 8, energy: -6, xp: 3 }
-    },
+    // TOYS
+    { id: "toy_ball", type: "toy", name: "Ball", price: 10, effects: { happiness: 10, energy: -5, xp: 2 } },
+    { id: "toy_robot", type: "toy", name: "Robot", price: 25, effects: { happiness: 15, energy: -8, xp: 4 } },
+    { id: "toy_rope", type: "toy", name: "Jump Rope", price: 15, effects: { happiness: 8, energy: -6, xp: 3 } },
 
-    /* ---------- BOOKS ---------- */
-    {
-      id: "book_basic",
-      type: "book",
-      name: "Basic Training Guide",
-      price: 15,
-      effects: { intelligence: 1, xp: 3 }
-    },
-    {
-      id: "book_advanced",
-      type: "book",
-      name: "Advanced Strategy",
-      price: 30,
-      effects: { intelligence: 2, xp: 5 }
-    },
-    {
-      id: "book_magic",
-      type: "book",
-      name: "Magic Compendium",
-      price: 40,
-      effects: { intelligence: 3, happiness: 3, xp: 7 }
-    }
+    // BOOKS
+    { id: "book_basic", type: "book", name: "Basic Training Guide", price: 15, effects: { intelligence: 1, xp: 3 } },
+    { id: "book_advanced", type: "book", name: "Advanced Strategy", price: 30, effects: { intelligence: 2, xp: 5 } },
+    { id: "book_magic", type: "book", name: "Magic Compendium", price: 40, effects: { intelligence: 3, happiness: 3, xp: 7 } }
   ];
 
-  items.forEach(item => {
-    store.shopItems.set(item.id, item);
-  });
+  items.forEach(i => store.shopItems.set(i.id, i));
 }
-
-/* ========================================= */
-/* STARTER INVENTORY                         */
-/* ========================================= */
 
 export function createStarterInventory(petId: string): Inventory {
   return {
@@ -120,61 +50,94 @@ export function createStarterInventory(petId: string): Inventory {
   };
 }
 
-/* ========================================= */
-/* QUESTS                                    */
-/* ========================================= */
-
 export function createDefaultQuests(petId: string): Quest[] {
   return [
+    // ===== Base Quests (immer verfügbar, repeatable) =====
     {
       id: "q_feed_2",
-      title: "Feed your pet twice",
+      title: "Füttere dein Pet 2×",
       goalType: "feed",
       goalCount: 2,
       progress: 0,
       rewardCoins: 15,
       rewardXp: 5,
-      status: "available"
+      status: "available",
+      minLevel: 1
     },
     {
-      id: "q_play_3",
-      title: "Play 3 times",
+      id: "q_play_2",
+      title: "Spiele 2×",
       goalType: "play",
-      goalCount: 3,
+      goalCount: 2,
       progress: 0,
-      rewardCoins: 20,
-      rewardXp: 8,
-      status: "available"
+      rewardCoins: 15,
+      rewardXp: 5,
+      status: "available",
+      minLevel: 1
     },
     {
       id: "q_read_1",
-      title: "Read one book",
+      title: "Lies 1 Buch vor",
       goalType: "read",
       goalCount: 1,
       progress: 0,
-      rewardCoins: 10,
-      rewardXp: 4,
-      status: "available"
+      rewardCoins: 12,
+      rewardXp: 5,
+      status: "available",
+      minLevel: 1
+    },
+
+    // ===== Advanced Quests (ab Level 2) =====
+    {
+      id: "q_train_3",
+      title: "Trainiere 3×",
+      goalType: "train",
+      goalCount: 3,
+      progress: 0,
+      rewardCoins: 35,
+      rewardXp: 14,
+      status: "available",
+      minLevel: 2
     },
     {
-      id: "q_train_2",
-      title: "Train twice",
-      goalType: "train",
-      goalCount: 2,
+      id: "q_play_5",
+      title: "Spiele 5×",
+      goalType: "play",
+      goalCount: 5,
       progress: 0,
-      rewardCoins: 25,
-      rewardXp: 10,
-      status: "available"
+      rewardCoins: 40,
+      rewardXp: 16,
+      status: "available",
+      minLevel: 2
+    },
+
+    // ===== Advanced Quests (ab Level 3) =====
+    {
+      id: "q_feed_6",
+      title: "Füttere dein Pet 6×",
+      goalType: "feed",
+      goalCount: 6,
+      progress: 0,
+      rewardCoins: 60,
+      rewardXp: 25,
+      status: "available",
+      minLevel: 3
+    },
+    {
+      id: "q_read_4",
+      title: "Lies 4 Bücher vor",
+      goalType: "read",
+      goalCount: 4,
+      progress: 0,
+      rewardCoins: 55,
+      rewardXp: 24,
+      status: "available",
+      minLevel: 3
     }
   ];
 }
 
-/* ========================================= */
-/* GAME LOGIC HELPERS                        */
-/* ========================================= */
-
 export function calcLevel(xp: number) {
-  // Level steigt alle 20 XP
   return Math.floor(xp / 20) + 1;
 }
 

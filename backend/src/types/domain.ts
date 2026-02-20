@@ -57,4 +57,5 @@ export type Quest = {
   rewardCoins: number;
   rewardXp: number;
   status: QuestStatus;
+  minLevel?: number;
 };

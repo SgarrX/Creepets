@@ -48,5 +48,6 @@ export type Quest = {
   progress: number;
   rewardCoins: number;
   rewardXp: number;
+  minLevel?: number;
   status: "available" | "active" | "completed" | "claimed";
 };

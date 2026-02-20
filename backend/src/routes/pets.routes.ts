@@ -13,6 +13,8 @@ import { Pet } from "../types/domain";
 const router = Router();
 initShopItems();
 
+const MAX_ACTIVE_QUESTS = 3;
+
 function requirePet(id: string) {
   const pet = store.pets.get(id);
   return pet ?? null;
@@ -171,7 +173,6 @@ router.post("/:id/play", (req, res) => {
     pet.energy = clamp01to100(pet.energy + (item.effects.energy ?? -5));
     applyXpAndLevel(pet, item.effects.xp ?? 0);
   } else {
-    // minigame score route: reward based on score
     const s = typeof score === "number" ? score : 0;
     const xpGain = Math.min(10, Math.max(0, Math.floor(s / 10)));
     const coinGain = Math.min(20, Math.max(0, Math.floor(s / 5)));
@@ -241,16 +242,18 @@ router.post("/:id/train", (req, res) => {
   res.json({ data: { pet } });
 });
 
-// GET /api/pets/:id/quests
+// GET /api/pets/:id/quests  (only unlocked by level)
 router.get("/:id/quests", (req, res) => {
   const pet = requirePet(req.params.id);
   if (!pet) return res.status(404).json({ error: "pet not found" });
 
   const qs = store.quests.get(pet.id) ?? [];
-  res.json({ data: qs });
+  const visible = qs.filter(q => (q.minLevel ?? 1) <= pet.level);
+
+  res.json({ data: visible });
 });
 
-// POST /api/pets/:id/quests/:questId/accept
+// POST /api/pets/:id/quests/:questId/accept  (max 3 active + level lock)
 router.post("/:id/quests/:questId/accept", (req, res) => {
   const pet = requirePet(req.params.id);
   if (!pet) return res.status(404).json({ error: "pet not found" });
@@ -261,13 +264,42 @@ router.post("/:id/quests/:questId/accept", (req, res) => {
 
   if (q.status !== "available") return res.status(409).json({ error: "quest not available" });
 
+  const minLevel = q.minLevel ?? 1;
+  if (pet.level < minLevel) {
+    return res.status(409).json({ error: `quest locked until level ${minLevel}` });
+  }
+
+  const activeCount = qs.filter(x => x.status === "active").length;
+  if (activeCount >= MAX_ACTIVE_QUESTS) {
+    return res.status(409).json({ error: `max ${MAX_ACTIVE_QUESTS} active quests` });
+  }
+
   q.status = "active";
   q.progress = 0;
 
   res.json({ data: q });
 });
 
-// POST /api/pets/:id/quests/:questId/claim
+// POST /api/pets/:id/quests/:questId/abandon  (free up an active slot)
+router.post("/:id/quests/:questId/abandon", (req, res) => {
+  const pet = requirePet(req.params.id);
+  if (!pet) return res.status(404).json({ error: "pet not found" });
+
+  const qs = store.quests.get(pet.id) ?? [];
+  const q = qs.find(x => x.id === req.params.questId);
+  if (!q) return res.status(404).json({ error: "quest not found" });
+
+  if (q.status !== "active") {
+    return res.status(409).json({ error: "quest is not active" });
+  }
+
+  q.status = "available";
+  q.progress = 0;
+
+  res.json({ data: q });
+});
+
+// POST /api/pets/:id/quests/:questId/claim  (TURN-IN + repeatable)
 router.post("/:id/quests/:questId/claim", (req, res) => {
   const pet = requirePet(req.params.id);
   if (!pet) return res.status(404).json({ error: "pet not found" });
@@ -276,16 +308,25 @@ router.post("/:id/quests/:questId/claim", (req, res) => {
   const q = qs.find(x => x.id === req.params.questId);
   if (!q) return res.status(404).json({ error: "quest not found" });
 
-  if (q.status !== "completed") return res.status(409).json({ error: "quest not completed" });
+  const finished = q.progress >= q.goalCount;
+
+  if (q.status === "active" && finished) {
+    q.status = "completed";
+  }
+
+  if (q.status !== "completed") {
+    return res.status(409).json({ error: "quest not completed" });
+  }
 
   pet.coins += q.rewardCoins;
   applyXpAndLevel(pet, q.rewardXp);
   touchPet(pet);
 
-  q.status = "claimed";
+  // repeatable: reset to available so it can be accepted again
+  q.status = "available";
+  q.progress = 0;
 
   res.json({ data: { quest: q, pet } });
 });
 
 export = router;
-
