@@ -1,7 +1,9 @@
-import { getActivePetId } from "./activePet";
+import { useGameStore } from "../state/gameStore";
 
-export function requireActivePetId(): string {
-  const id = getActivePetId();
-  if (!id) throw new Error("Kein aktives Pet. Bitte zuerst adoptieren.");
-  return id;
+/**
+ * Returns the active pet id if present, otherwise null.
+ * Use this in pages that require an active pet.
+ */
+export function requireActivePetId(): string | null {
+  return useGameStore.getState().activePetId ?? null;
 }

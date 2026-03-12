@@ -1,115 +1,140 @@
-import { useEffect, useState } from "react";
-import { apiGet, apiPost } from "../lib/api";
-import { requireActivePetId } from "../lib/requirePet";
-import type { InventoryResolved, Pet, ResolvedInvItem } from "../lib/types";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { useGameStore } from "../state/gameStore";
+import { useLivePet } from "../utils/livePetStats";
+
+function formatEffects(meta: any): string[] {
+  const effects = Array.isArray(meta?.effects) ? meta.effects : [];
+  const lines = effects.map((e: any) => {
+    const stat = String(e?.stat ?? "unknown");
+    const delta = Number(e?.delta ?? 0);
+    const sign = delta >= 0 ? "+" : "";
+    return `${stat} ${sign}${delta}`;
+  });
+
+  return lines.length > 0 ? lines : ["happiness +10"];
+}
 
 export default function Play() {
-  const [inv, setInv] = useState<InventoryResolved | null>(null);
-  const [pet, setPet] = useState<Pet | null>(null);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
 
-  async function load() {
-    const petId = requireActivePetId();
-    const [invRes, petRes] = await Promise.all([
-      apiGet<{ data: InventoryResolved }>(`/api/pets/${petId}/inventory`),
-      apiGet<{ data: Pet }>(`/api/pets/${petId}`)
-    ]);
-    setInv(invRes.data);
-    setPet(petRes.data);
-  }
+  const activePetBase = useGameStore((s) => s.getActivePet());
+  const inventory = useGameStore((s) => s.inventory);
+  const itemsById = useGameStore((s) => s.itemsById);
+  const useItem = useGameStore((s) => s.useItem);
 
-  useEffect(() => {
-    load().catch(e => setErr(String(e.message || e)));
-  }, []);
+  const activePet = useLivePet(activePetBase);
 
-  async function play(item: ResolvedInvItem) {
+  const toys = useMemo(() => {
+    return Object.values(inventory)
+      .map((stack) => {
+        const def = itemsById[stack.itemId];
+        const type = (def?.meta?.type as string | undefined) ?? "unknown";
+        return {
+          itemId: stack.itemId,
+          qty: stack.quantity,
+          name: def?.name ?? stack.itemId,
+          description: def?.description ?? "",
+          meta: def?.meta ?? {},
+          type,
+        };
+      })
+      .filter((x) => x.type === "toy" && x.qty > 0)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [inventory, itemsById]);
+
+  async function playWithToy(itemId: string, label: string) {
     setErr("");
     setMsg("");
+
     try {
-      const petId = requireActivePetId();
-      const res = await apiPost<{ data: { pet: Pet; inventory: InventoryResolved } }>(
-        `/api/pets/${petId}/play`,
-        { toyItemId: item.itemId }
-      );
-      setPet(res.data.pet);
-      setInv(res.data.inventory);
-      setMsg(`Played with: ${item.item?.name ?? item.itemId}`);
+      await useItem(itemId, 1);
+      setMsg(`Gespielt mit: ${label}`);
     } catch (e: any) {
-      setErr(e.message ?? String(e));
+      setErr(e?.message ?? String(e));
     }
   }
 
-  // optional: minigame button (score based)
-  async function playMinigame() {
-    setErr("");
-    setMsg("");
-    try {
-      const petId = requireActivePetId();
-      const randomScore = Math.floor(Math.random() * 120); // 0..119
-      const res = await apiPost<{ data: { pet: Pet; inventory: InventoryResolved } }>(
-        `/api/pets/${petId}/play`,
-        { score: randomScore }
-      );
-      setPet(res.data.pet);
-      setInv(res.data.inventory);
-      setMsg(`Minigame score: ${randomScore} (rewards applied)`);
-    } catch (e: any) {
-      setErr(e.message ?? String(e));
-    }
+  if (!activePet) {
+    return (
+      <div className="panel">
+        <h2 style={{ marginTop: 0 }}>Play</h2>
+        <p className="alert-error">Du brauchst erst ein Pet.</p>
+        <Link to="/adopt" className="nav-link active">
+          Zur Adoption →
+        </Link>
+      </div>
+    );
   }
-
-  const toys = (inv?.items ?? []).filter(x => x.item?.type === "toy");
 
   return (
     <div>
       <h2>Play</h2>
 
-      {err && <p style={{ color: "crimson" }}>{err}</p>}
-      {msg && <p style={{ color: "green" }}>{msg}</p>}
+      {err && <p className="alert-error">{err}</p>}
+      {msg && <p className="alert-success">{msg}</p>}
 
-      {pet && (
-        <p>
-          Happiness: <b>{pet.happiness}</b> | Energy: <b>{pet.energy}</b> | Coins: <b>{pet.coins}</b>
-        </p>
-      )}
-
-      <div style={{ margin: "12px 0" }}>
-        <button onClick={playMinigame}>Play Minigame (random score)</button>
+      <div className="panel" style={{ marginBottom: 12 }}>
+        <b>{activePet.name}</b> · Happiness: <b>{activePet.stats.happiness}</b> · Energy:{" "}
+        <b>
+          {activePet.stats.energy} / {activePet.stats.energyMax}
+        </b>
       </div>
 
-      <h3>Toys</h3>
-      {!inv ? (
-        <p>Loading...</p>
-      ) : toys.length === 0 ? (
-        <p>No toys. Buy some in Shop.</p>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
-          {toys.map(t => (
-            <div key={t.itemId} style={{ border: "1px solid #ddd", borderRadius: 14, padding: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                <b>{t.item?.name ?? t.itemId}</b>
-                <span>× {t.qty}</span>
-              </div>
+      <div className="panel">
+        <h3 style={{ marginTop: 0 }}>Toys</h3>
 
-              {t.item?.effects && (
-                <div style={{ marginTop: 8, fontSize: 14 }}>
-                  <b>Effects:</b>
-                  <ul style={{ marginTop: 6 }}>
-                    {Object.entries(t.item.effects).map(([k, v]) => (
-                      <li key={k}>{k}: {v > 0 ? `+${v}` : v}</li>
-                    ))}
-                  </ul>
+        {toys.length === 0 ? (
+          <p>
+            Keine Toys im Inventar. Hol dir was im <Link to="/shop">Shop</Link>.
+          </p>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+              gap: 12,
+            }}
+          >
+            {toys.map((toy) => {
+              const effects = formatEffects(toy.meta);
+
+              return (
+                <div key={toy.itemId} className="panel">
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                    <b>{toy.name}</b>
+                    <span>× {toy.qty}</span>
+                  </div>
+
+                  {toy.description ? (
+                    <div className="muted" style={{ marginTop: 8 }}>
+                      {toy.description}
+                    </div>
+                  ) : null}
+
+                  <div style={{ marginTop: 8 }}>
+                    <b>Effekte:</b>
+                    <ul style={{ marginTop: 6, paddingLeft: 18 }}>
+                      {effects.map((effect) => (
+                        <li key={effect}>{effect}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <button
+                    className="btn primary"
+                    style={{ marginTop: 10 }}
+                    onClick={() => playWithToy(toy.itemId, toy.name)}
+                  >
+                    Play
+                  </button>
                 </div>
-              )}
-
-              <button style={{ marginTop: 10 }} onClick={() => play(t)}>
-                Play
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

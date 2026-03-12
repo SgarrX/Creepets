@@ -1,229 +1,304 @@
-import { useEffect, useMemo, useState } from "react";
-import { apiGet, apiPost } from "../lib/api";
-import { requireActivePetId } from "../lib/requirePet";
-import type { Pet, Quest } from "../lib/types";
+import { useMemo, useState } from "react";
+import { useGameStore } from "../state/gameStore";
 
-const MAX_ACTIVE = 3;
-
-function badgeStyle(status: Quest["status"]) {
-  const base: React.CSSProperties = {
-    padding: "2px 8px",
-    borderRadius: 999,
-    fontSize: 12,
-    fontWeight: 700,
-    display: "inline-block"
-  };
-
-  if (status === "available") return { ...base, background: "#2b2c30", border: "1px solid #444" };
-  if (status === "active") return { ...base, background: "#263b5a", border: "1px solid #4f8cff" };
-  if (status === "completed") return { ...base, background: "#21452d", border: "1px solid #7cff9e" };
-  return { ...base, background: "#3a3b40", border: "1px solid #666" }; // claimed
+function getRequirementTarget(req: any): number {
+  if (!req) return 1;
+  if (typeof req.amount === "number") return req.amount;
+  if (typeof req.score === "number") return req.score;
+  return 1;
 }
 
-function progressPct(q: Quest) {
-  if (q.goalCount <= 0) return 0;
-  return Math.max(0, Math.min(100, Math.round((q.progress / q.goalCount) * 100)));
+function getProgressValue(progress: any, req: any): number {
+  if (!progress) return 0;
+  if (req?.type === "minigame_score_at_least") {
+    return typeof progress.score === "number" ? progress.score : 0;
+  }
+  if (typeof progress.count === "number") return progress.count;
+  return 0;
 }
 
-function isFinished(q: Quest) {
-  return q.progress >= q.goalCount;
+function isCompletable(req: any, progress: any): boolean {
+  const target = getRequirementTarget(req);
+  const current = getProgressValue(progress, req);
+  return current >= target;
 }
 
-function minLevel(q: Quest) {
-  return q.minLevel ?? 1;
+function describeRewards(rewards: any): string[] {
+  const lines: string[] = [];
+
+  if (typeof rewards?.coins === "number" && rewards.coins > 0) {
+    lines.push(`${rewards.coins} Coins`);
+  }
+
+  if (typeof rewards?.xp === "number" && rewards.xp > 0) {
+    lines.push(`${rewards.xp} XP`);
+  }
+
+  if (Array.isArray(rewards?.items)) {
+    for (const it of rewards.items) {
+      const itemId = it?.item_id ?? it?.itemId ?? it?.id ?? "item";
+      const qty = it?.qty ?? it?.quantity ?? it?.amount ?? 1;
+      lines.push(`${qty}× ${itemId}`);
+    }
+  }
+
+  if (rewards?.stat_upgrades && typeof rewards.stat_upgrades === "object") {
+    for (const [key, value] of Object.entries(rewards.stat_upgrades)) {
+      if (typeof value === "number" && value > 0) {
+        const label =
+          key === "strength" ? "STR" : key === "agility" ? "AGI" : key === "intelligence" ? "INT" : key;
+        lines.push(`${label} +${value}`);
+      }
+    }
+  }
+
+  return lines;
 }
 
 export default function Quests() {
-  const [pet, setPet] = useState<Pet | null>(null);
-  const [quests, setQuests] = useState<Quest[]>([]);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
 
-  async function load() {
-    const petId = requireActivePetId();
-    const [petRes, qRes] = await Promise.all([
-      apiGet<{ data: Pet }>(`/api/pets/${petId}`),
-      apiGet<{ data: Quest[] }>(`/api/pets/${petId}/quests`)
-    ]);
-    setPet(petRes.data);
-    setQuests(qRes.data);
-  }
+  const activePet = useGameStore((s) => s.getActivePet());
+  const questsById = useGameStore((s) => s.questsById);
+  const playerQuests = useGameStore((s) => s.playerQuests);
+  const acceptQuest = useGameStore((s) => s.acceptQuest);
+  const completeQuest = useGameStore((s) => s.completeQuestAndApplyRewards);
+  const abandonQuest = useGameStore((s) => s.abandonQuest);
+  const countActiveQuests = useGameStore((s) => s.countActiveQuests);
 
-  useEffect(() => {
-    load().catch(e => setErr(String(e.message || e)));
-    const t = setInterval(() => load().catch(() => {}), 10000);
-    return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const activePetLevel = activePet?.stats.level ?? 1;
+  const activeCount = countActiveQuests();
+  const maxActive = 3;
 
-  const activeCount = useMemo(
-    () => quests.filter(q => q.status === "active").length,
-    [quests]
-  );
+  const activeQuests = useMemo(() => {
+    return playerQuests
+      .filter((pq) => pq.status === "active")
+      .map((pq) => {
+        const def = questsById[pq.questId];
+        return {
+          pq,
+          def,
+          ready: isCompletable(def?.requirements, pq.progress),
+        };
+      })
+      .sort((a, b) => {
+        const aLevel = a.def?.levelRequired ?? 1;
+        const bLevel = b.def?.levelRequired ?? 1;
+        if (bLevel !== aLevel) return bLevel - aLevel;
+        return a.def?.title?.localeCompare(b.def?.title ?? "") ?? 0;
+      });
+  }, [playerQuests, questsById]);
 
-  const sorted = useMemo(() => {
-    // Primär: minLevel absteigend (3 -> 2 -> 1)
-    // Sekundär: Status-Rang, damit aktive/abgebbare innerhalb eines Levels oben stehen
-    const rank: Record<Quest["status"], number> = {
-      completed: 0,
-      active: 1,
-      available: 2,
-      claimed: 3
-    };
+  const completedQuestIds = useMemo(() => {
+    return new Set(
+      playerQuests
+        .filter((pq) => pq.status === "completed")
+        .map((pq) => pq.questId),
+    );
+  }, [playerQuests]);
 
-    return [...quests].sort((a, b) => {
-      const lvl = minLevel(b) - minLevel(a);
-      if (lvl !== 0) return lvl;
-      return rank[a.status] - rank[b.status];
-    });
-  }, [quests]);
+  const activeQuestIds = useMemo(() => {
+    return new Set(
+      playerQuests
+        .filter((pq) => pq.status === "active")
+        .map((pq) => pq.questId),
+    );
+  }, [playerQuests]);
 
-  async function annehmen(id: string) {
+  const availableQuests = useMemo(() => {
+    return Object.values(questsById)
+      .filter((q) => q.levelRequired <= activePetLevel)
+      .filter((q) => !activeQuestIds.has(q.id))
+      .filter((q) => q.repeatable || !completedQuestIds.has(q.id))
+      .sort((a, b) => {
+        if (b.levelRequired !== a.levelRequired) return b.levelRequired - a.levelRequired;
+        return a.title.localeCompare(b.title);
+      });
+  }, [questsById, activePetLevel, activeQuestIds, completedQuestIds]);
+
+  async function handleAccept(questId: string) {
     setErr("");
     setMsg("");
     try {
-      const petId = requireActivePetId();
-      await apiPost(`/api/pets/${petId}/quests/${id}/accept`);
-      setMsg("Quest angenommen!");
-      await load();
+      await acceptQuest(questId);
+      setMsg("Quest angenommen.");
     } catch (e: any) {
-      setErr(e.message ?? String(e));
+      setErr(e?.message ?? String(e));
     }
   }
 
-  async function abgeben(id: string) {
+  async function handleComplete(playerQuestId: string) {
     setErr("");
     setMsg("");
     try {
-      const petId = requireActivePetId();
-      const res = await apiPost<{ data: { quest: Quest; pet: Pet } }>(`/api/pets/${petId}/quests/${id}/claim`);
-      setPet(res.data.pet);
-      setMsg("Quest abgegeben! Rewards erhalten.");
-      await load();
+      await completeQuest(playerQuestId);
+      setMsg("Quest abgegeben.");
     } catch (e: any) {
-      setErr(e.message ?? String(e));
+      setErr(e?.message ?? String(e));
     }
   }
 
-  async function aufgeben(id: string) {
+  async function handleAbandon(playerQuestId: string) {
     setErr("");
     setMsg("");
     try {
-      const petId = requireActivePetId();
-      await apiPost(`/api/pets/${petId}/quests/${id}/abandon`);
-      setMsg("Quest aufgegeben. Slot frei!");
-      await load();
+      await abandonQuest(playerQuestId);
+      setMsg("Quest aufgegeben.");
     } catch (e: any) {
-      setErr(e.message ?? String(e));
+      setErr(e?.message ?? String(e));
     }
+  }
+
+  if (!activePet) {
+    return (
+      <div className="panel">
+        <h2 style={{ marginTop: 0 }}>Quests</h2>
+        <p className="alert-error">Du brauchst erst ein Pet.</p>
+      </div>
+    );
   }
 
   return (
     <div>
       <h2>Quests</h2>
 
-      {pet && (
-        <p>
-          Coins: <b>{pet.coins}</b> | Level: <b>{pet.level}</b> | XP: <b>{pet.xp}</b>
-          {" "} | Aktiv: <b>{activeCount}/{MAX_ACTIVE}</b>
-        </p>
-      )}
+      <div className="panel" style={{ marginBottom: 12 }}>
+        Aktives Pet: <b>{activePet.name}</b> · Level <b>{activePetLevel}</b> · aktive Quests{" "}
+        <b>
+          {activeCount}/{maxActive}
+        </b>
+      </div>
 
       {err && <p className="alert-error">{err}</p>}
       {msg && <p className="alert-success">{msg}</p>}
 
-      {sorted.length === 0 ? (
-        <p>No quests available.</p>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 12 }}>
-          {sorted.map(q => {
-            const finished = isFinished(q);
+      <div className="panel" style={{ marginBottom: 12 }}>
+        <h3 style={{ marginTop: 0 }}>Aktive Quests</h3>
 
-            // Sichtbarkeit/Regeln:
-            const showAccept = q.status === "available";
-            const acceptDisabled = activeCount >= MAX_ACTIVE;
+        {activeQuests.length === 0 ? (
+          <p className="muted">Keine aktiven Quests.</p>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, minmax(240px, 1fr))",
+              gap: 12,
+            }}
+          >
+            {activeQuests.map(({ pq, def, ready }) => {
+              const req = def?.requirements ?? {};
+              const target = getRequirementTarget(req);
+              const current = getProgressValue(pq.progress, req);
+              const rewards = describeRewards(def?.rewards ?? {});
 
-            const showTurnIn = q.status === "completed" || (q.status === "active" && finished);
-            const showAbandon = q.status === "active" && !finished; // nur wenn noch nicht fertig
-
-            return (
-              <div key={q.id} className="card">
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-                  <div>
-                    <div style={{ fontSize: 12, opacity: 0.75 }}>
-                      {q.goalType.toUpperCase()} • min Lv {minLevel(q)}
+              return (
+                <div key={pq.id} className="panel">
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                    <div>
+                      <b>{def?.title ?? pq.questId}</b>
+                      <div className="muted" style={{ marginTop: 4 }}>
+                        Level {def?.levelRequired ?? 1}
+                      </div>
                     </div>
-                    <b style={{ fontSize: 16 }}>{q.title}</b>
-                  </div>
-                  <span style={badgeStyle(q.status)}>{q.status.toUpperCase()}</span>
-                </div>
 
-                <div style={{ marginTop: 12 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, opacity: 0.85 }}>
-                    <span>Progress</span>
-                    <b>
-                      {q.progress}/{q.goalCount}
-                    </b>
-                  </div>
-
-                  <div className="progress-bar" style={{ marginTop: 6 }}>
-                    <div className="progress-fill" style={{ width: `${progressPct(q)}%` }} />
-                  </div>
-                </div>
-
-                <div style={{ marginTop: 12, fontSize: 14, opacity: 0.9 }}>
-                  Rewards: <b>+{q.rewardCoins}</b> coins, <b>+{q.rewardXp}</b> XP
-                </div>
-
-                {/* ✅ Buttons nur anzeigen, wenn sinnvoll */}
-                {(showAccept || showTurnIn || showAbandon) && (
-                  <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                    {showAccept && (
-                      <button
-                        onClick={() => annehmen(q.id)}
-                        disabled={acceptDisabled}
-                        title={acceptDisabled ? "Maximal 3 aktive Quests. Gib eine Quest auf oder gib eine fertige ab." : ""}
-                      >
-                        Annehmen ({activeCount}/{MAX_ACTIVE})
-                      </button>
-                    )}
-
-                    {showTurnIn && (
-                      <button onClick={() => abgeben(q.id)} className="primary">
-                        Abgeben
-                      </button>
-                    )}
-
-                    {showAbandon && (
-                      <button onClick={() => aufgeben(q.id)}>
-                        Aufgeben
-                      </button>
+                    {ready ? (
+                      <span className="alert-success">
+                        <b>Abgabebereit</b>
+                      </span>
+                    ) : (
+                      <span className="muted">In Arbeit</span>
                     )}
                   </div>
-                )}
 
-                {q.status === "available" && activeCount >= MAX_ACTIVE && (
-                  <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7 }}>
-                    Du hast bereits <b>{MAX_ACTIVE}</b> aktive Quests. Gib eine Quest auf oder gib eine fertige ab.
-                  </div>
-                )}
+                  {def?.description ? (
+                    <div style={{ marginTop: 10, fontWeight: 700 }}>{def.description}</div>
+                  ) : null}
 
-                {q.status === "active" && !finished && (
-                  <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7 }}>
-                    Quest läuft… mach passende Aktionen oder <b>Aufgeben</b>, um Platz zu schaffen.
+                  <div style={{ marginTop: 8 }}>
+                    Fortschritt: <b>{current}</b> / <b>{target}</b>
                   </div>
-                )}
 
-                {q.status === "claimed" && (
-                  <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7 }}>
-                    Bereits abgegeben ✅
+                  {rewards.length > 0 ? (
+                    <div className="muted" style={{ marginTop: 8 }}>
+                      Belohnung: {rewards.join(" · ")}
+                    </div>
+                  ) : null}
+
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+                    <button
+                      className="btn primary"
+                      disabled={!ready}
+                      onClick={() => handleComplete(pq.id)}
+                    >
+                      Abgeben
+                    </button>
+                    <button className="btn" onClick={() => handleAbandon(pq.id)}>
+                      Aufgeben
+                    </button>
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="panel">
+        <h3 style={{ marginTop: 0 }}>Verfügbare Quests</h3>
+
+        {availableQuests.length === 0 ? (
+          <p className="muted">
+            Aktuell keine weiteren verfügbaren Quests.
+          </p>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, minmax(240px, 1fr))",
+              gap: 12,
+            }}
+          >
+            {availableQuests.map((q) => {
+              const rewards = describeRewards(q.rewards);
+
+              return (
+                <div key={q.id} className="panel">
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                    <div>
+                      <b>{q.title}</b>
+                      <div className="muted" style={{ marginTop: 4 }}>
+                        Benötigt Level {q.levelRequired}
+                      </div>
+                    </div>
+
+                    <span className="alert-success">Verfügbar</span>
+                  </div>
+
+                  {q.description ? (
+                    <div style={{ marginTop: 10, fontWeight: 700 }}>{q.description}</div>
+                  ) : null}
+
+                  {rewards.length > 0 ? (
+                    <div className="muted" style={{ marginTop: 8 }}>
+                      Belohnung: {rewards.join(" · ")}
+                    </div>
+                  ) : null}
+
+                  <button
+                    className="btn"
+                    style={{ marginTop: 10 }}
+                    disabled={activeCount >= maxActive}
+                    onClick={() => handleAccept(q.id)}
+                  >
+                    Annehmen ({activeCount}/{maxActive})
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
