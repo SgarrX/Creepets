@@ -1,27 +1,18 @@
-const KEY = "activePetId";
-const EVENT = "activePetIdChanged";
+import { useGameStore } from "../state/gameStore";
 
+/**
+ * Legacy helper: früher war activePetId in localStorage.
+ * Jetzt kommt es aus Supabase (profiles.active_pet_id) über den GameStore.
+ */
 export function getActivePetId(): string | null {
-  return localStorage.getItem(KEY);
+  return useGameStore.getState().activePetId ?? null;
 }
 
-export function setActivePetId(id: string) {
-  localStorage.setItem(KEY, id);
-  window.dispatchEvent(new Event(EVENT));
+// Diese Funktionen existieren nur noch, damit alte Imports nicht crashen.
+// Sie machen absichtlich nichts.
+export function setActivePetId(_id: string) {
+  // no-op (Supabase ist source of truth)
 }
-
 export function clearActivePetId() {
-  localStorage.removeItem(KEY);
-  window.dispatchEvent(new Event(EVENT));
-}
-
-export function onActivePetIdChanged(cb: () => void) {
-  const handler = () => cb();
-  window.addEventListener(EVENT, handler);
-  // optional: also react to cross-tab changes
-  window.addEventListener("storage", handler);
-  return () => {
-    window.removeEventListener(EVENT, handler);
-    window.removeEventListener("storage", handler);
-  };
+  // no-op
 }

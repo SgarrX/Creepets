@@ -1,92 +1,105 @@
-import { useEffect, useState } from "react";
-import { apiGet, apiPost } from "../lib/api";
-import { requireActivePetId } from "../lib/requirePet";
-import type { InventoryResolved, Pet, ResolvedInvItem } from "../lib/types";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { useGameStore } from "../state/gameStore";
 
 export default function Read() {
-  const [inv, setInv] = useState<InventoryResolved | null>(null);
-  const [pet, setPet] = useState<Pet | null>(null);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
 
-  async function load() {
-    const petId = requireActivePetId();
-    const [invRes, petRes] = await Promise.all([
-      apiGet<{ data: InventoryResolved }>(`/api/pets/${petId}/inventory`),
-      apiGet<{ data: Pet }>(`/api/pets/${petId}`)
-    ]);
-    setInv(invRes.data);
-    setPet(petRes.data);
-  }
+  const activePetId = useGameStore((s) => s.activePetId);
+  const pets = useGameStore((s) => s.pets);
+  const itemsById = useGameStore((s) => s.itemsById);
+  const inventory = useGameStore((s) => s.inventory);
+  const useItem = useGameStore((s) => s.useItem);
 
-  useEffect(() => {
-    load().catch(e => setErr(String(e.message || e)));
-  }, []);
+  const pet = useMemo(() => {
+    if (!activePetId) return null;
+    return pets.find((p) => p.id === activePetId) ?? null;
+  }, [activePetId, pets]);
 
-  async function read(item: ResolvedInvItem) {
+  const books = useMemo(() => {
+    return Object.values(inventory)
+      .map((stack) => {
+        const def = itemsById[stack.itemId];
+        const type = (def?.meta?.type as string | undefined) ?? "unknown";
+        return {
+          itemId: stack.itemId,
+          qty: stack.quantity,
+          name: def?.name ?? stack.itemId,
+          type,
+          description: def?.description ?? "",
+        };
+      })
+      .filter((x) => x.type === "book" && x.qty > 0);
+  }, [inventory, itemsById]);
+
+  async function handleRead(itemId: string, label: string) {
     setErr("");
     setMsg("");
     try {
-      const petId = requireActivePetId();
-      const res = await apiPost<{ data: { pet: Pet; inventory: InventoryResolved } }>(
-        `/api/pets/${petId}/read`,
-        { bookItemId: item.itemId }
-      );
-      setPet(res.data.pet);
-      setInv(res.data.inventory);
-      setMsg(`Read: ${item.item?.name ?? item.itemId}`);
+      await useItem(itemId, 1);
+      setMsg(`Gelesen: ${label}`);
     } catch (e: any) {
-      setErr(e.message ?? String(e));
+      setErr(e?.message ?? String(e));
     }
   }
 
-  const books = (inv?.items ?? []).filter(x => x.item?.type === "book");
+  if (!activePetId || !pet) {
+    return (
+      <div className="panel">
+        <h2 style={{ marginTop: 0 }}>Read</h2>
+        <p className="alert-error">Du brauchst ein aktives Pet.</p>
+        <Link to="/dashboard" className="nav-link active">
+          Zum Dashboard →
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div>
       <h2>Read</h2>
 
-      {err && <p style={{ color: "crimson" }}>{err}</p>}
-      {msg && <p style={{ color: "green" }}>{msg}</p>}
+      {err && <p className="alert-error">{err}</p>}
+      {msg && <p className="alert-success">{msg}</p>}
 
-      {pet && (
-        <p>
-          Intelligence: <b>{pet.intelligence}</b> | XP: <b>{pet.xp}</b> | Level: <b>{pet.level}</b>
-        </p>
-      )}
+      <div className="panel" style={{ marginBottom: 12 }}>
+        <b>{pet.name}</b> · Level <b>{pet.stats.level}</b> · XP <b>{pet.stats.xp}</b> · INT <b>{pet.stats.intelligence}</b>
+      </div>
 
-      <h3>Books</h3>
-      {!inv ? (
-        <p>Loading...</p>
-      ) : books.length === 0 ? (
-        <p>No books. Buy some in Shop.</p>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
-          {books.map(b => (
-            <div key={b.itemId} style={{ border: "1px solid #ddd", borderRadius: 14, padding: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                <b>{b.item?.name ?? b.itemId}</b>
-                <span>× {b.qty}</span>
-              </div>
-
-              {b.item?.effects && (
-                <div style={{ marginTop: 8, fontSize: 14 }}>
-                  <b>Effects:</b>
-                  <ul style={{ marginTop: 6 }}>
-                    {Object.entries(b.item.effects).map(([k, v]) => (
-                      <li key={k}>{k}: {v > 0 ? `+${v}` : v}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <button style={{ marginTop: 10 }} onClick={() => read(b)}>
-                Read
-              </button>
-            </div>
-          ))}
+      <div className="panel" style={{ marginBottom: 12 }}>
+        <h3 style={{ marginTop: 0 }}>Lesen bringt</h3>
+        <div className="muted">
+          Bücher erhöhen aktuell XP und helfen indirekt beim Leveln.
         </div>
-      )}
+      </div>
+
+      <div className="panel">
+        <h3 style={{ marginTop: 0 }}>Bücher</h3>
+
+        {books.length === 0 ? (
+          <p>
+            Keine Bücher im Inventar. Hol dir welche im <Link to="/shop">Shop</Link>.
+          </p>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+            {books.map((b) => (
+              <div key={b.itemId} className="panel">
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                  <b>{b.name}</b>
+                  <span>× {b.qty}</span>
+                </div>
+
+                {b.description && <div className="muted" style={{ marginTop: 8 }}>{b.description}</div>}
+
+                <button className="btn primary" style={{ marginTop: 10 }} onClick={() => handleRead(b.itemId, b.name)}>
+                  Read
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

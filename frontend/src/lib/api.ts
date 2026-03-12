@@ -1,19 +1,12 @@
-export async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(path);
-  if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
-  return res.json();
+// src/lib/api.ts
+export async function apiGet<T>(_path: string): Promise<T> {
+  throw new Error(
+    `Legacy REST API call blocked: "${_path}". This page still uses the old /api backend. Switch it to Supabase/GameStore.`
+  );
 }
 
-export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
-  const res = await fetch(path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: body ? JSON.stringify(body) : undefined
-  });
-
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`POST ${path} failed: ${res.status} ${txt}`);
-  }
-  return res.json();
+export async function apiPost<T>(_path: string, _body?: any): Promise<T> {
+  throw new Error(
+    `Legacy REST API call blocked: "${_path}". This page still uses the old /api backend. Switch it to Supabase/GameStore.`
+  );
 }
