@@ -14,14 +14,14 @@ export function deriveLiveStats(stats: PetStats, nowMs: number): PetStats {
 
   const hungerGain = Math.max(
     0,
-    Math.floor((nowMs - new Date(stats.lastHungerRiseAt).getTime()) / 3_600_000) * 5,
+    Math.floor((nowMs - new Date(stats.lastHungerRiseAt).getTime()) / 3_600_000),
   );
 
   return {
     ...stats,
     energy: Math.min(stats.energyMax, stats.energy + energyGain),
     happiness: Math.max(0, stats.happiness - happinessLoss),
-    hunger: Math.max(0, stats.hunger + hungerGain),
+    hunger: Math.min(100, Math.max(0, stats.hunger + hungerGain)),
   };
 }
 
