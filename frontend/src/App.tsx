@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   NavLink,
+  Navigate,
   Route,
   Routes,
   useLocation,
@@ -107,6 +108,20 @@ function AuthPanel() {
   );
 }
 
+function RootRedirect() {
+  const profile = useGameStore((s) => s.profile);
+  const activePet = useGameStore((s) => s.getActivePet());
+
+  const hasUsername = !!profile?.username?.trim();
+  const hasPet = !!activePet;
+
+  if (hasUsername && hasPet) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <Navigate to="/profile" replace />;
+}
+
 function TopBar({
   userId,
   onLogout,
@@ -160,27 +175,40 @@ function TopBar({
       <div className="topbar-inner">
         <div
           className="brand"
-          onClick={() => nav("/")}
+          onClick={() => {
+            if (!isLoggedIn) {
+              onLoginClick();
+              return;
+            }
+            nav("/");
+          }}
           role="button"
           tabIndex={0}
           onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") nav("/");
+            if (e.key === "Enter" || e.key === " ") {
+              if (!isLoggedIn) {
+                onLoginClick();
+              } else {
+                nav("/");
+              }
+            }
           }}
         >
           <div className="brand-dot" />
           <div>
             <div className="brand-title">CritterTown</div>
-            <div className="brand-sub">Supabase Savegame</div>
           </div>
         </div>
 
         <nav className="nav">
-          <NavLink to="/" className={({ isActive }) => cx("nav-link", isActive && "active")}>
-            Home
-          </NavLink>
-
           {isLoggedIn ? (
             <>
+              <NavLink
+                to="/profile"
+                className={({ isActive }) => cx("nav-link", isActive && "active")}
+              >
+                Profile
+              </NavLink>
               <NavLink
                 to="/dashboard"
                 className={({ isActive }) => cx("nav-link", isActive && "active")}
@@ -198,6 +226,12 @@ function TopBar({
                 className={({ isActive }) => cx("nav-link", isActive && "active")}
               >
                 Inventory
+              </NavLink>
+              <NavLink
+                to="/shop"
+                className={({ isActive }) => cx("nav-link", isActive && "active")}
+              >
+                Shop
               </NavLink>
               <NavLink
                 to="/minigame"
@@ -224,9 +258,6 @@ function TopBar({
 
                 {actionsOpen ? (
                   <div className="dropdown-menu">
-                    <NavLink to="/shop" className="dropdown-item">
-                      Shop
-                    </NavLink>
                     <NavLink to="/feed" className="dropdown-item">
                       Feed
                     </NavLink>
@@ -243,8 +274,8 @@ function TopBar({
                     <NavLink to="/leaderboard" className="dropdown-item">
                       Leaderboard
                     </NavLink>
-                    <NavLink to="/profile" className="dropdown-item">
-                      Profile
+                    <NavLink to="/help" className="dropdown-item">
+                      Help
                     </NavLink>
                   </div>
                 ) : null}
@@ -369,23 +400,15 @@ export default function App() {
     }
 
     setUserId(null);
-    navigate("/");
+    navigate("/login");
   };
 
   const goToLogin = () => {
-    if (location.pathname !== "/") {
-      navigate("/");
-      window.setTimeout(() => {
-        const el = document.getElementById("auth-panel");
-        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 50);
-      return;
-    }
-
-    const el = document.getElementById("auth-panel");
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    navigate("/login");
+    window.setTimeout(() => {
+      const el = document.getElementById("auth-panel");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
   };
 
   return (
@@ -411,7 +434,9 @@ export default function App() {
                 </p>
               </div>
             ) : null}
-            <AuthPanel />
+            <Routes>
+              <Route path="*" element={<AuthPanel />} />
+            </Routes>
           </>
         ) : (
           <>
@@ -424,7 +449,9 @@ export default function App() {
             )}
 
             <Routes>
-              <Route path="/" element={<Home />} />
+              <Route path="/" element={<RootRedirect />} />
+              <Route path="/login" element={<RootRedirect />} />
+              <Route path="/profile" element={<Profile />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/adopt" element={<Adopt />} />
               <Route path="/feed" element={<Feed />} />
@@ -436,7 +463,8 @@ export default function App() {
               <Route path="/shop" element={<Shop />} />
               <Route path="/quests" element={<Quests />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
-              <Route path="/profile" element={<Profile />} />
+              <Route path="/help" element={<Home />} />
+              <Route path="*" element={<RootRedirect />} />
             </Routes>
           </>
         )}

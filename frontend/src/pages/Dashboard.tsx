@@ -327,6 +327,12 @@ export default function Dashboard() {
                 <b>{activePet.stats.intelligence}</b>
               </div>
             </div>
+
+            <div style={{ marginTop: 12 }}>
+              <Link to="/help" className="muted" style={{ textDecoration: "underline" }}>
+                Hilfe zum Spiel
+              </Link>
+            </div>
           </div>
 
           <div className="panel">
