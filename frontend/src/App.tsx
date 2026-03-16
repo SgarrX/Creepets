@@ -24,6 +24,7 @@ import Minigame from "./pages/Minigame";
 
 import { supabase } from "./supabaseClient";
 import { useGameStore } from "./state/gameStore";
+import pageBackground from "./data/Pictures/page_background.png";
 
 function cx(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
@@ -33,7 +34,7 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
     p,
     new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(`${label} timeout (${ms}ms)`)), ms),
+        setTimeout(() => reject(new Error(`${label} timeout (${ms}ms)`)), ms),
     ),
   ]);
 }
@@ -65,46 +66,46 @@ function AuthPanel() {
   }
 
   return (
-    <div id="auth-panel" className="panel" style={{ maxWidth: 520, margin: "0 auto" }}>
-      <div className="panel-header">
-        <h2 style={{ margin: 0 }}>Login</h2>
-        <p className="muted" style={{ margin: 0 }}>
-          Damit dein Spielstand gespeichert wird.
-        </p>
-      </div>
+      <div id="auth-panel" className="panel" style={{ maxWidth: 520, margin: "0 auto" }}>
+        <div className="panel-header">
+          <h2 style={{ margin: 0 }}>Login</h2>
+          <p className="muted" style={{ margin: 0 }}>
+            Damit dein Spielstand gespeichert wird.
+          </p>
+        </div>
 
-      {msg && <p className="alert-error">{msg}</p>}
+        {msg && <p className="alert-error">{msg}</p>}
 
-      <div className="form-grid">
-        <label className="field">
-          <span>Email</span>
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-          />
-        </label>
+        <div className="form-grid">
+          <label className="field">
+            <span>Email</span>
+            <input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+            />
+          </label>
 
-        <label className="field">
-          <span>Passwort</span>
-          <input
-            type="password"
-            value={pw}
-            onChange={(e) => setPw(e.target.value)}
-            placeholder="••••••••"
-          />
-        </label>
+          <label className="field">
+            <span>Passwort</span>
+            <input
+                type="password"
+                value={pw}
+                onChange={(e) => setPw(e.target.value)}
+                placeholder="••••••••"
+            />
+          </label>
 
-        <div className="row" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <button className="btn primary" onClick={signIn} disabled={!email || !pw}>
-            Login
-          </button>
-          <button className="btn" onClick={signUp} disabled={!email || !pw}>
-            Registrieren
-          </button>
+          <div className="row" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button className="btn primary" onClick={signIn} disabled={!email || !pw}>
+              Login
+            </button>
+            <button className="btn" onClick={signUp} disabled={!email || !pw}>
+              Registrieren
+            </button>
+          </div>
         </div>
       </div>
-    </div>
   );
 }
 
@@ -123,11 +124,11 @@ function RootRedirect() {
 }
 
 function TopBar({
-  userId,
-  onLogout,
-  onLoginClick,
-  syncing,
-}: {
+                  userId,
+                  onLogout,
+                  onLoginClick,
+                  syncing,
+                }: {
   userId: string | null;
   onLogout: () => void;
   onLoginClick: () => void;
@@ -171,143 +172,143 @@ function TopBar({
   }, [actionsOpen]);
 
   return (
-    <header className="topbar">
-      <div className="topbar-inner">
-        <div
-          className="brand"
-          onClick={() => {
-            if (!isLoggedIn) {
-              onLoginClick();
-              return;
-            }
-            nav("/");
-          }}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              if (!isLoggedIn) {
-                onLoginClick();
-              } else {
+      <header className="topbar">
+        <div className="topbar-inner">
+          <div
+              className="brand"
+              onClick={() => {
+                if (!isLoggedIn) {
+                  onLoginClick();
+                  return;
+                }
                 nav("/");
-              }
-            }
-          }}
-        >
-          <div className="brand-dot" />
-          <div>
-            <div className="brand-title">CritterTown</div>
+              }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  if (!isLoggedIn) {
+                    onLoginClick();
+                  } else {
+                    nav("/");
+                  }
+                }
+              }}
+          >
+            <div className="brand-dot" />
+            <div>
+              <div className="brand-title">CritterTown</div>
+            </div>
           </div>
-        </div>
 
-        <nav className="nav">
-          {isLoggedIn ? (
-            <>
-              <NavLink
-                to="/profile"
-                className={({ isActive }) => cx("nav-link", isActive && "active")}
-              >
-                Profile
-              </NavLink>
-              <NavLink
-                to="/dashboard"
-                className={({ isActive }) => cx("nav-link", isActive && "active")}
-              >
-                Dashboard
-              </NavLink>
-              <NavLink
-                to="/adopt"
-                className={({ isActive }) => cx("nav-link", isActive && "active")}
-              >
-                Adopt
-              </NavLink>
-              <NavLink
-                to="/inventory"
-                className={({ isActive }) => cx("nav-link", isActive && "active")}
-              >
-                Inventory
-              </NavLink>
-              <NavLink
-                to="/shop"
-                className={({ isActive }) => cx("nav-link", isActive && "active")}
-              >
-                Shop
-              </NavLink>
-              <NavLink
-                to="/minigame"
-                className={({ isActive }) => cx("nav-link", isActive && "active")}
-              >
-                Minigame
-              </NavLink>
-              <NavLink
-                to="/quests"
-                className={({ isActive }) => cx("nav-link", isActive && "active")}
-              >
-                Quests
-              </NavLink>
+          <nav className="nav">
+            {isLoggedIn ? (
+                <>
+                  <NavLink
+                      to="/profile"
+                      className={({ isActive }) => cx("nav-link", isActive && "active")}
+                  >
+                    Profile
+                  </NavLink>
+                  <NavLink
+                      to="/dashboard"
+                      className={({ isActive }) => cx("nav-link", isActive && "active")}
+                  >
+                    Dashboard
+                  </NavLink>
+                  <NavLink
+                      to="/adopt"
+                      className={({ isActive }) => cx("nav-link", isActive && "active")}
+                  >
+                    Adopt
+                  </NavLink>
+                  <NavLink
+                      to="/inventory"
+                      className={({ isActive }) => cx("nav-link", isActive && "active")}
+                  >
+                    Inventory
+                  </NavLink>
+                  <NavLink
+                      to="/shop"
+                      className={({ isActive }) => cx("nav-link", isActive && "active")}
+                  >
+                    Shop
+                  </NavLink>
+                  <NavLink
+                      to="/minigame"
+                      className={({ isActive }) => cx("nav-link", isActive && "active")}
+                  >
+                    Minigame
+                  </NavLink>
+                  <NavLink
+                      to="/quests"
+                      className={({ isActive }) => cx("nav-link", isActive && "active")}
+                  >
+                    Quests
+                  </NavLink>
 
-              <div ref={menuRef} className="dropdown">
-                <button
-                  type="button"
-                  className={cx("nav-link", "nav-link-button", actionsOpen && "active")}
-                  onClick={() => setActionsOpen((v) => !v)}
-                  aria-expanded={actionsOpen}
-                >
-                  Aktionen <span className="dropdown-caret">▾</span>
-                </button>
+                  <div ref={menuRef} className="dropdown">
+                    <button
+                        type="button"
+                        className={cx("nav-link", "nav-link-button", actionsOpen && "active")}
+                        onClick={() => setActionsOpen((v) => !v)}
+                        aria-expanded={actionsOpen}
+                    >
+                      Aktionen <span className="dropdown-caret">▾</span>
+                    </button>
 
-                {actionsOpen ? (
-                  <div className="dropdown-menu">
-                    <NavLink to="/feed" className="dropdown-item">
-                      Feed
-                    </NavLink>
-                    <NavLink to="/play" className="dropdown-item">
-                      Play
-                    </NavLink>
-                    <NavLink to="/read" className="dropdown-item">
-                      Read
-                    </NavLink>
-                    <NavLink to="/train" className="dropdown-item">
-                      Train
-                    </NavLink>
-                    <div className="dropdown-sep" />
-                    <NavLink to="/leaderboard" className="dropdown-item">
-                      Leaderboard
-                    </NavLink>
-                    <NavLink to="/help" className="dropdown-item">
-                      Help
-                    </NavLink>
+                    {actionsOpen ? (
+                        <div className="dropdown-menu">
+                          <NavLink to="/feed" className="dropdown-item">
+                            Feed
+                          </NavLink>
+                          <NavLink to="/play" className="dropdown-item">
+                            Play
+                          </NavLink>
+                          <NavLink to="/read" className="dropdown-item">
+                            Read
+                          </NavLink>
+                          <NavLink to="/train" className="dropdown-item">
+                            Train
+                          </NavLink>
+                          <div className="dropdown-sep" />
+                          <NavLink to="/leaderboard" className="dropdown-item">
+                            Leaderboard
+                          </NavLink>
+                          <NavLink to="/help" className="dropdown-item">
+                            Help
+                          </NavLink>
+                        </div>
+                    ) : null}
                   </div>
-                ) : null}
-              </div>
-            </>
-          ) : null}
-        </nav>
+                </>
+            ) : null}
+          </nav>
 
-        <div className="userbox">
-          {isLoggedIn ? (
-            <>
-              <div className="chip" title={userId ?? undefined}>
-                <span className="chip-dot" />
-                <span className="chip-text">
+          <div className="userbox">
+            {isLoggedIn ? (
+                <>
+                  <div className="chip" title={userId ?? undefined}>
+                    <span className="chip-dot" />
+                    <span className="chip-text">
                   user · {profile?.username ?? "kein Username"}
                 </span>
-              </div>
+                  </div>
 
-              {syncing ? <span className="muted" style={{ fontSize: 12 }}>Sync…</span> : null}
+                  {syncing ? <span className="muted" style={{ fontSize: 12 }}>Sync…</span> : null}
 
-              <button className="btn" onClick={onLogout}>
-                Logout
-              </button>
-            </>
-          ) : (
-            <button className="btn primary" onClick={onLoginClick}>
-              Login
-            </button>
-          )}
+                  <button className="btn" onClick={onLogout}>
+                    Logout
+                  </button>
+                </>
+            ) : (
+                <button className="btn primary" onClick={onLoginClick}>
+                  Login
+                </button>
+            )}
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
   );
 }
 
@@ -412,63 +413,73 @@ export default function App() {
   };
 
   return (
-    <div className="app-shell">
-      <TopBar
-        userId={userId}
-        onLogout={() => void logout()}
-        onLoginClick={goToLogin}
-        syncing={isLoading}
-      />
+      <div
+          className="app-shell"
+          style={{
+            minHeight: "100vh",
+            backgroundImage: `url(${pageBackground})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+            backgroundAttachment: "fixed",
+          }}
+      >
+        <TopBar
+            userId={userId}
+            onLogout={() => void logout()}
+            onLoginClick={goToLogin}
+            syncing={isLoading}
+        />
 
-      <main className="container">
-        {!booted ? (
-          <div className="panel">
-            <p>Loading…</p>
-          </div>
-        ) : !userId ? (
-          <>
-            {localError ? (
-              <div className="panel" style={{ marginBottom: 12 }}>
-                <p className="alert-error" style={{ margin: 0 }}>
-                  {localError}
-                </p>
+        <main className="container">
+          {!booted ? (
+              <div className="panel">
+                <p>Loading…</p>
               </div>
-            ) : null}
-            <Routes>
-              <Route path="*" element={<AuthPanel />} />
-            </Routes>
-          </>
-        ) : (
-          <>
-            {(localError || lastError) && (
-              <div className="panel" style={{ marginBottom: 12 }}>
-                <p className="alert-error" style={{ margin: 0 }}>
-                  {localError || lastError}
-                </p>
-              </div>
-            )}
+          ) : !userId ? (
+              <>
+                {localError ? (
+                    <div className="panel" style={{ marginBottom: 12 }}>
+                      <p className="alert-error" style={{ margin: 0 }}>
+                        {localError}
+                      </p>
+                    </div>
+                ) : null}
+                <Routes>
+                  <Route path="*" element={<AuthPanel />} />
+                </Routes>
+              </>
+          ) : (
+              <>
+                {(localError || lastError) && (
+                    <div className="panel" style={{ marginBottom: 12 }}>
+                      <p className="alert-error" style={{ margin: 0 }}>
+                        {localError || lastError}
+                      </p>
+                    </div>
+                )}
 
-            <Routes>
-              <Route path="/" element={<RootRedirect />} />
-              <Route path="/login" element={<RootRedirect />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/adopt" element={<Adopt />} />
-              <Route path="/feed" element={<Feed />} />
-              <Route path="/play" element={<Play />} />
-              <Route path="/read" element={<Read />} />
-              <Route path="/train" element={<Train />} />
-              <Route path="/inventory" element={<Inventory />} />
-              <Route path="/minigame" element={<Minigame />} />
-              <Route path="/shop" element={<Shop />} />
-              <Route path="/quests" element={<Quests />} />
-              <Route path="/leaderboard" element={<Leaderboard />} />
-              <Route path="/help" element={<Home />} />
-              <Route path="*" element={<RootRedirect />} />
-            </Routes>
-          </>
-        )}
-      </main>
-    </div>
+                <Routes>
+                  <Route path="/" element={<RootRedirect />} />
+                  <Route path="/login" element={<RootRedirect />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/adopt" element={<Adopt />} />
+                  <Route path="/feed" element={<Feed />} />
+                  <Route path="/play" element={<Play />} />
+                  <Route path="/read" element={<Read />} />
+                  <Route path="/train" element={<Train />} />
+                  <Route path="/inventory" element={<Inventory />} />
+                  <Route path="/minigame" element={<Minigame />} />
+                  <Route path="/shop" element={<Shop />} />
+                  <Route path="/quests" element={<Quests />} />
+                  <Route path="/leaderboard" element={<Leaderboard />} />
+                  <Route path="/help" element={<Home />} />
+                  <Route path="*" element={<RootRedirect />} />
+                </Routes>
+              </>
+          )}
+        </main>
+      </div>
   );
 }

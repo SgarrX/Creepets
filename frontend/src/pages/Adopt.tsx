@@ -2,12 +2,16 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useGameStore } from "../state/gameStore";
 import type { StarterSpecies } from "../domain/types";
+import brumbleIcon from "../data/Pictures/Brumble.png";
+import whiskraIcon from "../data/Pictures/Whiskra.png";
+import sproutIcon from "../data/Pictures/Sprout.png";
 
 type StarterCard = {
   id: StarterSpecies;
   title: string;
   subtitle: string;
   description: string;
+  icon: string;
   stats: {
     strength: number;
     agility: number;
@@ -19,30 +23,33 @@ type StarterCard = {
 const STARTERS: StarterCard[] = [
   {
     id: "brute",
-    title: "Brute",
+    title: "Brumble",
     subtitle: "kräftiger Starter",
     description:
-      "Mehr Stärke, etwas robuster Start. Gut für Leute, die Probleme lieber mit einem metaphorischen Backstein lösen.",
+        "Mehr Stärke, etwas robuster Start. Gut für Leute, die Probleme lieber mit einem metaphorischen Backstein lösen.",
+    icon: brumbleIcon,
     stats: { strength: 4, agility: 2, intelligence: 1 },
     startItems: ["mehr Futter", "3 Toys", "1 Potion", "1 Buch"],
   },
   {
-    id: "scout",
-    title: "Scout",
-    subtitle: "flinker Starter",
-    description:
-      "Mehr Agility und viele Spielsachen. Für flinke Gremlins mit Hummeln im Hirn.",
-    stats: { strength: 2, agility: 4, intelligence: 1 },
-    startItems: ["solides Futter", "4 Toys", "1 Potion", "1 Buch"],
-  },
-  {
     id: "sage",
-    title: "Sage",
+    title: "Whiskra",
     subtitle: "kluger Starter",
     description:
-      "Mehr Intelligence und die beste Buchausstattung. Klassischer Bücherwurm mit Chaospotenzial.",
+        "Mehr Intelligence und die beste Buchausstattung. Klassischer Bücherwurm mit Chaospotenzial.",
+    icon: whiskraIcon,
     stats: { strength: 1, agility: 2, intelligence: 4 },
     startItems: ["weniger Futter", "2 Toys", "1 Potion", "3 Bücher"],
+  },
+  {
+    id: "scout",
+    title: "Sprout",
+    subtitle: "flinker Starter",
+    description:
+        "Mehr Agility und viele Spielsachen. Für flinke Gremlins mit Hummeln im Hirn.",
+    icon: sproutIcon,
+    stats: { strength: 2, agility: 4, intelligence: 1 },
+    startItems: ["solides Futter", "4 Toys", "1 Potion", "1 Buch"],
   },
 ];
 
@@ -176,6 +183,17 @@ export default function Adopt() {
                 boxShadow: selected ? "0 0 0 1px rgba(120,220,170,0.25)" : undefined,
               }}
             >
+              <img
+                  src={starter.icon}
+                  alt={starter.title}
+                  style={{
+                    width: 230,
+                    height: 230,
+                    objectFit: "contain",
+                    display: "block",
+                    margin: "0 auto 12px auto",
+                  }}
+              />
               <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
                 <div>
                   <h3 style={{ marginTop: 0, marginBottom: 4 }}>{starter.title}</h3>
