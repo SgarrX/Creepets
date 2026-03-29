@@ -11,7 +11,8 @@ Für das Ausführen der Anwendung werden benötigt:
 
 Repository klonen:
 
-git clone https://github.com/SgarrX/Creepets)
+git clone https://github.com/SgarrX/Creepets
+
 cd Creepets
 
 In den Frontend-Ordner wechseln:
