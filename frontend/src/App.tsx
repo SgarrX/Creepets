@@ -197,7 +197,7 @@ function TopBar({
           >
             <div className="brand-dot" />
             <div>
-              <div className="brand-title">CritterTown</div>
+              <div className="brand-title">Creepets</div>
             </div>
           </div>
 
