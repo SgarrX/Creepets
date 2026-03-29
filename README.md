@@ -30,3 +30,8 @@ npm run dev
 Die Anwendung ist danach erreichbar unter:
 
 http://localhost:5173
+
+## Test Zugang
+
+test@test.test
+test123
