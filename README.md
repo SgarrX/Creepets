@@ -11,8 +11,8 @@ Für das Ausführen der Anwendung werden benötigt:
 
 Repository klonen:
 
-git clone <REPOSITORY-URL>  
-cd <PROJEKTORDNER>
+git clone https://github.com/SgarrX/Creepets)
+cd Creepets
 
 In den Frontend-Ordner wechseln:
 
@@ -22,9 +22,6 @@ Abhängigkeiten installieren:
 
 npm install
 
-npm install @supabase/supabase-js
-
-
 ## Anwendung starten
 
 npm run dev
@@ -32,10 +29,3 @@ npm run dev
 Die Anwendung ist danach erreichbar unter:
 
 http://localhost:5173
-
-
-## Hinweis zu Vite
-
-Das Projekt wurde ursprünglich mit Vite erstellt:
-
-npm create vite@latest my-app -- --template react  
