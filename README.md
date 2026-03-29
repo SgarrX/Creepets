@@ -3,7 +3,7 @@
 Für das Ausführen der Anwendung werden benötigt:
 
 - Node.js
-- npm
+- git
 - Internetverbindung
 
 
